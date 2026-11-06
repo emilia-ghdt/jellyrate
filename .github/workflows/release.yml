@@ -1,0 +1,62 @@
+name: Release
+
+# Push a tag equal to the build.yaml version, e.g. "v1.0.0.0".
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - run: pip install jprm==1.1.0
+
+      - name: Check tag matches build.yaml version
+        run: |
+          version=$(sed -n 's/^version: *"\(.*\)"/\1/p' build.yaml)
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME != build.yaml version v$version"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build plugin zip
+        run: |
+          mkdir out
+          jprm plugin build . --output out
+          ls out
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "out/jellyrate_$VERSION.zip" --title "$GITHUB_REF_NAME" --generate-notes
+
+      # The manifest lives on its own branch so no push to (possibly protected) main is needed.
+      # URL: https://raw.githubusercontent.com/<owner>/<repo>/manifest/manifest.json
+      - name: Update manifest branch
+        run: |
+          git fetch origin manifest || true
+          if git rev-parse --verify -q origin/manifest; then
+            git worktree add repo origin/manifest
+          else
+            git worktree add --detach repo
+            git -C repo checkout --orphan manifest
+            git -C repo rm -rf -q . || true
+            jprm repo init repo
+          fi
+          jprm repo add \
+            --plugin-url "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/jellyrate_$VERSION.zip" \
+            repo "out/jellyrate_$VERSION.zip"
+          cd repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "Add JellyRate $VERSION to manifest"
+          git push origin HEAD:refs/heads/manifest
