@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Jellyfin.Plugin.JellyRate/Jellyfin.Plugin.JellyRate.csproj" />
+  <Project Path="Jellyfin.Plugin.JellyRate.IntegrationTests/Jellyfin.Plugin.JellyRate.IntegrationTests.csproj" />
+  <Project Path="Jellyfin.Plugin.JellyRate.Tests/Jellyfin.Plugin.JellyRate.Tests.csproj" />
+</Solution>

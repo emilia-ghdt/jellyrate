@@ -1,0 +1,7 @@
+<Project>
+    <PropertyGroup>
+        <!-- Default for local builds; jprm passes -p:Version=<build.yaml version>, which overrides this.
+             AssemblyVersion and FileVersion are derived from Version by the SDK. -->
+        <Version Condition="'$(Version)' == ''">0.0.0.0</Version>
+    </PropertyGroup>
+</Project>

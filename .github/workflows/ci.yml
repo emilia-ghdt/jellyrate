@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build
+        run: dotnet build jellyrate.slnx -c Release
+      - name: Unit tests
+        run: dotnet test Jellyfin.Plugin.JellyRate.Tests -c Release --no-build
+
+  integration:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/cache@v4
+        with:
+          path: integration/.cache
+          key: jellyfin-12.4-ffmpeg-7.1.4
+      - name: Integration tests (native Jellyfin 12.4 server)
+        run: integration/run.sh
+      - name: Upload Jellyfin log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jellyfin-log
+          path: integration/data/jellyfin.log
+          if-no-files-found: ignore
