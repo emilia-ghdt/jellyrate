@@ -1,1 +1,18 @@
-- [ ] create plan
+- [x] create plan
+- [x] research Jellyfin 12.x plugin API (target framework, template, File Transformation compatibility)
+- [x] check whether the name "JellyRate"/"jellyrate" is already used (Jellyfin plugins, GitHub, repo catalogs)
+- [x] verify 12.x first-boot migration keeps plugin data folder / JSON file intact (do early)
+- [x] scaffold plugin from template for Jellyfin 12.x (net10.0, pinned packages, targetAbi 12.0.0.0, GPL-3.0)
+- [x] JSON store (atomic writes, lock) + xUnit tests
+- [x] REST API (GET/PUT/DELETE) with MediaBrowser auth + library-access check
+- [x] register File Transformation injection + detail-page UI script (rating row, review edit, average, user list)
+  - Verified in headless Chromium against native Jellyfin 12.4 + File Transformation 3.0.3.0 (rate/change/remove/review edit/SPA nav/mobile). No UI test in repo.
+- [x] API integration tests against Jellyfin 12 in CI
+  - 12/12 pass locally against native Jellyfin 12.4 (integration/run.sh). CI run not yet seen.
+- [x] jprm build, release workflow, custom repository manifest
+  - Local `jprm plugin build` + `jprm repo add` verified (zip = meta.json + DLL only, md5 matches, DLL reports build.yaml version). `.github/workflows/release.yml` not run (needs GitHub). Manifest URL placeholder in PLAN.md.
+- [x] README (install, File Transformation dependency, manual moderation via JSON)
+- [x] run integration tests against a native Jellyfin 12.x (portable tarball, no Docker) locally and in CI; replace docker-compose
+- [x] rating selector redesign: propose alternative styles for the 1-10 picker (artifact), then implement the chosen one in jellyrate.js
+  - G "Star button" implemented in jellyrate.js; verified in headless Chromium (rate/change/remove/hover/Escape/outside click/keyboard/review/mobile); 18 unit + 12 integration pass. Demo + UI test scripts live in the session scratchpad.
+- [x] verify README's File Transformation link and install instructions against its repo
