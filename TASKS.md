@@ -16,3 +16,7 @@
 - [x] rating selector redesign: propose alternative styles for the 1-10 picker (artifact), then implement the chosen one in jellyrate.js
   - G "Star button" implemented in jellyrate.js; verified in headless Chromium (rate/change/remove/hover/Escape/outside click/keyboard/review/mobile); 18 unit + 12 integration pass. Demo + UI test scripts live in the session scratchpad.
 - [x] verify README's File Transformation link and install instructions against its repo
+- [x] pin runners to ubuntu-24.04 in ci.yml and release.yml
+- [ ] show JellyRate average next to the community rating on the detail page (incl. ElegantFin theme)
+- [ ] show JellyRate rating on title cards (bulk ratings endpoint + card badges, incl. ElegantFin)
+- [ ] code readability pass (after the nice-to-haves)
