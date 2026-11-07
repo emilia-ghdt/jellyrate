@@ -49,6 +49,11 @@ mkdir -p "$plugin" "$work/config" "$work/cache" "$data/log" \
 
 dotnet publish Jellyfin.Plugin.JellyRate -c Release -o "$data/publish"
 cp "$data/publish/Jellyfin.Plugin.JellyRate.dll" "$plugin/"
+# Optional (used by ui/run.sh): the File Transformation plugin, needed for the web UI injection.
+if [ -n "${FILE_TRANSFORMATION_DIR:-}" ]; then
+  mkdir -p "$work/data/plugins/FileTransformation_3.0.3.0"
+  cp -r "$FILE_TRANSFORMATION_DIR"/. "$work/data/plugins/FileTransformation_3.0.3.0/"
+fi
 
 # Tiny placeholder files: Jellyfin lists them by file name even though they are not playable.
 echo placeholder > "$media/movies/Test Movie (2020)/Test Movie (2020).mkv"
@@ -77,4 +82,6 @@ for _ in $(seq 120); do
   sleep 1
 done
 
-JELLYFIN_URL=http://localhost:$port JELLYFIN_MEDIA=$media dotnet test Jellyfin.Plugin.JellyRate.IntegrationTests
+# TEST_CMD (set by ui/run.sh) replaces the integration tests.
+export JELLYFIN_URL=http://localhost:$port JELLYFIN_MEDIA=$media
+if [ -n "${TEST_CMD:-}" ]; then bash -c "$TEST_CMD"; else dotnet test Jellyfin.Plugin.JellyRate.IntegrationTests; fi

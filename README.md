@@ -82,6 +82,18 @@ integration/run.sh                                    # integration tests
 
 `integration/run.sh` builds the plugin, starts a throwaway native Jellyfin server (downloaded tarball, no Docker; `JELLYFIN_VERSION` defaults to 12.4) on port 8096, and runs `Jellyfin.Plugin.JellyRate.IntegrationTests` against it.
 
+## Browser checks
+
+`integration/ui/run.sh` starts the same throwaway native server as `integration/run.sh` and runs Playwright checks against the real web client: `checks.py` (rating flow, badges on detail pages and cards, pending save, edited flag) and `shots.py` (screenshots to the gitignored `integration/ui/out/`). It is not part of CI.
+
+It needs python3 with Playwright and the File Transformation plugin unzipped to a folder (`FILE_TRANSFORMATION_DIR`), because that is how the script gets injected into the web client; the checks fail with a hint if it is missing.
+
+```sh
+FILE_TRANSFORMATION_DIR=/path/to/FileTransformation integration/ui/run.sh
+```
+
+On other systems: `pip install playwright && playwright install chromium`. On NixOS: `nix-shell -p dotnet-sdk_10 python3 python3Packages.playwright playwright-driver.browsers` (plus the libraries `integration/run.sh` needs), and set `PLAYWRIGHT_BROWSERS_PATH` to the `playwright-browsers` store path and `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true`.
+
 ## Release
 
 1. Set `version` in `build.yaml` (e.g. `1.0.0.0`).

@@ -26,3 +26,4 @@
 - [x] fix flicker of the JellyRate badge on movie/series detail pages without a community rating (ElegantFin)
 - [x] make JellyRate stars look exactly like ElegantFin's rating stars (shape/size/weight), keeping the purple-blue color
 - [x] pending rating: picking a score is only stored on "Save review" (with the review text); fix 'edited' being set when the review text didn't change
+- [x] add the Playwright browser checks (live2.py/shots2.py + shared helpers) to the repo as integration/ui, runnable against the native test server; not wired into CI
