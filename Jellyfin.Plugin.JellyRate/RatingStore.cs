@@ -7,10 +7,12 @@ using System.Text.Json;
 namespace Jellyfin.Plugin.JellyRate;
 
 /// <summary>
-/// Stores ratings in a single JSON file.
+/// Stores ratings in a single JSON file (jellyrate.json in the plugin data folder; the only file the plugin
+/// writes). The file is read on every call and rewritten on every change; there is no in-memory cache.
 /// </summary>
 public class RatingStore
 {
+    // Static, so every instance in the process shares it: read-modify-write cycles never interleave.
     private static readonly object _lock = new();
     private static readonly JsonSerializerOptions _options = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     private readonly string _path;
@@ -42,6 +44,7 @@ public class RatingStore
             var data = Load();
             var users = data.Items.TryGetValue(itemId, out var existing) ? existing : data.Items[itemId] = new();
             var now = DateTimeOffset.UtcNow;
+            // "Edited" only when an existing review text changes (adding a first review doesn't count); it never resets.
             var rating = users.TryGetValue(userId, out var old)
                 ? old with { Score = score, Review = review, UpdatedAt = now, Edited = old.Edited || (old.Review is not null && old.Review != review) }
                 : new Rating(score, review, now, now, false);
@@ -102,7 +105,7 @@ public class RatingStore
         Dictionary<Guid, Dictionary<Guid, Rating>> items;
         lock (_lock)
         {
-            items = Load().Items;
+            items = Load().Items; // A fresh copy, so it is safe to use after the lock is released.
         }
 
         var result = new Dictionary<Guid, RatingSummary>();
@@ -110,15 +113,17 @@ public class RatingStore
         {
             if (items.TryGetValue(id, out var users) && users.Count > 0)
             {
-                result[id] = new RatingSummary(Math.Round(users.Values.Average(r => r.Score), 2), users.Count);
+                result[id] = new RatingSummary(RatingSummary.RoundedAverage(users.Values.Select(r => r.Score)), users.Count);
             }
         }
 
         return result;
     }
 
+    // A missing file means no ratings yet. A corrupt file throws, so it is never overwritten with empty data.
     private Data Load() => File.Exists(_path) ? JsonSerializer.Deserialize<Data>(File.ReadAllText(_path), _options) ?? new() : new();
 
+    // Write a temp file, then rename it over the real one: a crash mid-write never leaves a truncated file.
     private void Save(Data data)
     {
         var tmp = _path + ".tmp";

@@ -26,7 +26,7 @@ public record RatingResponse(double? Average, int Count, RatingEntry? Mine, IRea
             .Select(r => new RatingEntry(r.UserId, getUserName(r.UserId) ?? "Unknown user", r.Rating.Score, r.Rating.Review, r.Rating.UpdatedAt, r.Rating.Edited))
             .ToList();
         return new RatingResponse(
-            entries.Count == 0 ? null : Math.Round(entries.Average(e => e.Score), 2),
+            entries.Count == 0 ? null : RatingSummary.RoundedAverage(entries.Select(e => e.Score)),
             entries.Count,
             entries.FirstOrDefault(e => e.UserId == currentUserId),
             entries);

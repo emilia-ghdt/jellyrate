@@ -7,7 +7,7 @@ using Microsoft.Extensions.Hosting;
 namespace Jellyfin.Plugin.JellyRate;
 
 /// <summary>
-/// Registers the plugin's services.
+/// Registers the plugin's services: the startup hook that injects the web UI, and the rating store.
 /// </summary>
 public class PluginServiceRegistrator : IPluginServiceRegistrator
 {
@@ -16,6 +16,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     {
         serviceCollection.AddHostedService<WebInjector>();
         // Resolved lazily, because the plugin instance may not exist yet at registration time.
+        // DataFolderPath is unversioned (<plugins>/Jellyfin.Plugin.JellyRate), so ratings survive plugin updates.
         serviceCollection.AddSingleton(_ => new RatingStore(Path.Combine(Plugin.Instance!.DataFolderPath, "jellyrate.json")));
     }
 }

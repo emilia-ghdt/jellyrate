@@ -30,4 +30,11 @@ public record RatingSummary(double Average, int Count)
             .Distinct()
             .ToList();
     }
+
+    /// <summary>
+    /// The average shown everywhere (detail page and title cards), rounded to two decimals.
+    /// </summary>
+    /// <param name="scores">The scores; must not be empty.</param>
+    /// <returns>The rounded average.</returns>
+    public static double RoundedAverage(IEnumerable<int> scores) => Math.Round(scores.Average(), 2);
 }

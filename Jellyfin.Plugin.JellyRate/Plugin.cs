@@ -7,7 +7,8 @@ using MediaBrowser.Model.Serialization;
 namespace Jellyfin.Plugin.JellyRate;
 
 /// <summary>
-/// The main plugin.
+/// The plugin entry point Jellyfin loads: name, ID and data folder. The work is done by <see cref="RatingController"/>,
+/// <see cref="RatingStore"/>, <see cref="WebInjector"/> and <see cref="UiController"/>.
 /// </summary>
 public class Plugin : BasePlugin<PluginConfiguration>
 {
@@ -29,7 +30,7 @@ public class Plugin : BasePlugin<PluginConfiguration>
     public override Guid Id => Guid.Parse("7c52fc58-8da2-4e52-9efc-7c4a2dda690e");
 
     /// <summary>
-    /// Gets the current plugin instance.
+    /// Gets the current plugin instance (used to find <see cref="BasePlugin.DataFolderPath"/>).
     /// </summary>
     public static Plugin? Instance { get; private set; }
 }

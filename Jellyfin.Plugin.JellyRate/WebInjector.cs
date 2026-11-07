@@ -11,7 +11,9 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyRate;
 
 /// <summary>
-/// Registers a File Transformation (third-party plugin) that adds our script tag to the web client's index.html.
+/// At server startup, registers a File Transformation (third-party plugin) that adds exactly one tag,
+/// <c>&lt;script src="../JellyRate/ui.js" defer&gt;&lt;/script&gt;</c>, before &lt;/body&gt; of the web client's index.html.
+/// The file on disk is not changed; File Transformation rewrites it as it is served.
 /// Uses reflection because plugins live in separate load contexts. Does nothing but warn if it is missing.
 /// </summary>
 public sealed class WebInjector : IHostedService
@@ -37,6 +39,7 @@ public sealed class WebInjector : IHostedService
     public static string Transform(TransformPayload payload)
     {
         var html = payload.Contents ?? string.Empty;
+        // Idempotent, in case the tag is already there.
         if (html.Contains("JellyRate/ui.js", StringComparison.Ordinal))
         {
             return html;
@@ -76,16 +79,18 @@ public sealed class WebInjector : IHostedService
             return;
         }
 
+        // File Transformation calls back WebInjector.Transform (by name) for every served file matching the pattern.
         var json = JsonSerializer.Serialize(new
         {
-            id = "7c52fc58-8da2-4e52-9efc-7c4a2dda690f",
+            id = "7c52fc58-8da2-4e52-9efc-7c4a2dda690f", // This transformation's ID (not the plugin ID).
             fileNamePattern = "index\\.html",
             callbackAssembly = typeof(WebInjector).Assembly.FullName,
             callbackClass = typeof(WebInjector).FullName,
             callbackMethod = nameof(Transform)
         });
 
-        // The parameter is a Newtonsoft JObject owned by the other plugin's load context: build it from its own type.
+        // The parameter is a Newtonsoft JObject owned by the other plugin's load context: build it from its own type
+        // (JObject.Parse; the Deserialize fallback is for a future parameter type without Parse).
         var paramType = method.GetParameters()[0].ParameterType;
         var parse = paramType.GetMethod("Parse", new[] { typeof(string) });
         var payload = parse is null ? JsonSerializer.Deserialize(json, paramType) : parse.Invoke(null, new object[] { json });

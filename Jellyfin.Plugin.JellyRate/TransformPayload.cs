@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Jellyfin.Plugin.JellyRate;
 
 /// <summary>
-/// The payload File Transformation passes to the callback.
+/// The payload File Transformation passes to <see cref="WebInjector.Transform"/>: the served index.html.
 /// </summary>
 public class TransformPayload
 {

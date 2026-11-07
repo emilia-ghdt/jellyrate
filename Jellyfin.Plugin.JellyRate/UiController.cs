@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace Jellyfin.Plugin.JellyRate;
 
 /// <summary>
-/// Serves the static UI script. Anonymous on purpose: the script is the same for everyone and contains no data.
+/// Serves the browser script (embedded Web/jellyrate.js) at /JellyRate/ui.js, the URL <see cref="WebInjector"/> adds to index.html.
+/// Anonymous on purpose: a script tag sends no Jellyfin auth header, and the file is the same static code for everyone,
+/// with no user data. Everything the script then fetches goes through the authenticated <see cref="RatingController"/>.
 /// </summary>
 [ApiController]
 [AllowAnonymous]
@@ -27,7 +29,7 @@ public class UiController : ControllerBase
             return NotFound();
         }
 
-        Response.Headers.CacheControl = "no-cache";
+        Response.Headers.CacheControl = "no-cache"; // Revalidate, so a plugin update takes effect on reload.
         return File(stream, "application/javascript");
     }
 }

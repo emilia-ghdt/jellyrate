@@ -21,7 +21,8 @@
   - Badge "★ 7.8 (3)" after .starRatingContainer in .itemMiscInfo-primary; re-inserted if the client rebuilds the row. Verified in headless Chromium (default + ElegantFin, desktop + mobile) with File Transformation 3.0.3.0; unit + integration tests pass. Playwright script not in repo.
 - [x] show JellyRate rating on title cards (bulk ratings endpoint + card badges, incl. ElegantFin)
   - GET /JellyRate/Summaries + badge top-left on Movie/Series cards (debounced observer, 60 s cache, live update after rating). Verified in headless Chromium (default + ElegantFin, desktop + mobile, home/grid). Scripts in session scratchpad.
-- [ ] code readability pass (after the nice-to-haves)
+- [x] code readability pass (after the nice-to-haves)
+  - No behavior change: trust-relevant header comments per file, controller auth/visibility check deduplicated, jellyrate.js split into numbered sections with a network/DOM header. 25 unit + 16 integration pass; browser flows identical to before.
 - [x] fix flicker of the JellyRate badge on movie/series detail pages without a community rating (ElegantFin)
 - [x] make JellyRate stars look exactly like ElegantFin's rating stars (shape/size/weight), keeping the purple-blue color
 - [x] pending rating: picking a score is only stored on "Save review" (with the review text); fix 'edited' being set when the review text didn't change

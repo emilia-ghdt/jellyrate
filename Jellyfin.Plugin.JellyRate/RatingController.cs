@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net.Mime;
+using Jellyfin.Database.Implementations.Entities;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
@@ -13,10 +14,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace Jellyfin.Plugin.JellyRate;
 
 /// <summary>
-/// The rating API.
+/// The rating API (/JellyRate/Items/{id} and /JellyRate/Summaries). Runs on the server, logged-in users only.
+/// The user is always taken from Jellyfin's auth claims, never from the request, and only movies and series
+/// the caller can see are served (404 otherwise). Reads and writes go through <see cref="RatingStore"/>.
 /// </summary>
 [ApiController]
-[Authorize]
+[Authorize] // Jellyfin's default policy: any authenticated user.
 [Route("JellyRate")]
 [Produces(MediaTypeNames.Application.Json)]
 public class RatingController : ControllerBase
@@ -48,7 +51,7 @@ public class RatingController : ControllerBase
     [HttpGet("Items/{itemId}")]
     public ActionResult<RatingResponse> Get([FromRoute] Guid itemId)
     {
-        return Check(itemId, out var userId) is { } error ? error : Respond(itemId, userId);
+        return CallerWhoCanSee(itemId) is { } user ? Respond(itemId, user.Id) : NotFound();
     }
 
     /// <summary>
@@ -63,9 +66,9 @@ public class RatingController : ControllerBase
     [HttpPut("Items/{itemId}")]
     public ActionResult<RatingResponse> Put([FromRoute] Guid itemId, [FromBody, Required] RatingRequest request)
     {
-        if (Check(itemId, out var userId) is { } error)
+        if (CallerWhoCanSee(itemId) is not { } user)
         {
-            return error;
+            return NotFound();
         }
 
         if (request.Score is < 1 or > 10)
@@ -73,8 +76,8 @@ public class RatingController : ControllerBase
             return BadRequest("Score must be between 1 and 10.");
         }
 
-        _store.Set(itemId, userId, request.Score, request.Review);
-        return Respond(itemId, userId);
+        _store.Set(itemId, user.Id, request.Score, request.Review);
+        return Respond(itemId, user.Id);
     }
 
     /// <summary>
@@ -87,13 +90,13 @@ public class RatingController : ControllerBase
     [HttpDelete("Items/{itemId}")]
     public ActionResult<RatingResponse> Delete([FromRoute] Guid itemId)
     {
-        if (Check(itemId, out var userId) is { } error)
+        if (CallerWhoCanSee(itemId) is not { } user)
         {
-            return error;
+            return NotFound();
         }
 
-        _store.Remove(itemId, userId);
-        return Respond(itemId, userId);
+        _store.Remove(itemId, user.Id);
+        return Respond(itemId, user.Id);
     }
 
     /// <summary>
@@ -112,28 +115,28 @@ public class RatingController : ControllerBase
             return BadRequest($"At most {RatingSummary.MaxIds} ids.");
         }
 
-        // Same visibility rule as the single-item routes; hidden items are omitted.
-        var claim = User.Claims.FirstOrDefault(c => c.Type == "Jellyfin-UserId")?.Value;
-        var user = Guid.TryParse(claim, out var userId) ? _userManager.GetUserById(userId) : null;
-        if (user is null)
+        if (Caller() is not { } user)
         {
             return NotFound();
         }
 
-        var visible = wanted.Where(id => _libraryManager.GetItemById<BaseItem>(id, user) is Movie or Series);
+        // Hidden items are silently omitted, so a caller can't tell them apart from unrated ones.
+        var visible = wanted.Where(id => CanSee(user, id));
         return Ok(_store.Summaries(visible).ToDictionary(kv => kv.Key.ToString("N"), kv => kv.Value));
     }
 
-    // Returns an error result, or null when the caller may access the item.
-    private NotFoundResult? Check(Guid itemId, out Guid userId)
+    // The authenticated user, from the claim set by Jellyfin's authentication handler.
+    private User? Caller()
     {
-        // Claim set by Jellyfin's authentication handler.
         var claim = User.Claims.FirstOrDefault(c => c.Type == "Jellyfin-UserId")?.Value;
-        userId = Guid.TryParse(claim, out var id) ? id : Guid.Empty;
-        var user = userId == Guid.Empty ? null : _userManager.GetUserById(userId);
-        var item = user is null ? null : _libraryManager.GetItemById<BaseItem>(itemId, user);
-        return item is Movie or Series ? null : NotFound();
+        return Guid.TryParse(claim, out var id) && id != Guid.Empty ? _userManager.GetUserById(id) : null;
     }
+
+    // Library-access check: GetItemById with a user returns null when that user's library access or
+    // parental rules hide the item.
+    private bool CanSee(User user, Guid itemId) => _libraryManager.GetItemById<BaseItem>(itemId, user) is Movie or Series;
+
+    private User? CallerWhoCanSee(Guid itemId) => Caller() is { } user && CanSee(user, itemId) ? user : null;
 
     private RatingResponse Respond(Guid itemId, Guid userId)
     {
