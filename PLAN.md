@@ -9,7 +9,7 @@ Names: **JellyRate** (user-facing), `jellyrate` (developer/admin-facing: repo, a
 - Items: movies and series only. No seasons/episodes.
 - Rating: integer 1–10. One entry per (user, item). Change or remove at any time (clicking a clear button removes it).
 - Review: optional text attached to the rating. Edited in place; the list shows an "edited" label. No length limit.
-- Display: item detail page only. Average + count, and a per-user list (username, score, review) sorted newest first, no cap.
+- Display: item detail page: average + count, and a per-user list (username, score, review) sorted newest first, no cap. Title cards (home, grids, search) show a small badge "★ 7.0 (3)" (average + count, hidden without ratings), fed by the bulk endpoint, cached 60 s client-side.
 - Access: only users who can see an item can rate it or read its ratings (Jellyfin library access / parental rules).
 - Moderation: none in code; admins edit the JSON file by hand.
 - UI language: English only (strings in one place).
@@ -28,12 +28,13 @@ Names: **JellyRate** (user-facing), `jellyrate` (developer/admin-facing: repo, a
   }
 }
 ```
-`edited` becomes true when the review text changes after creation. Usernames are resolved at read time from the user ID (not stored).
+`edited` becomes true only when a previously stored review is changed to different text (adding a review to a score-only rating, changing only the score, or re-saving the same text does not set it); it stays true. Usernames are resolved at read time from the user ID (not stored).
 
 ### REST API (plugin controller, `/JellyRate/...`)
 - `GET /JellyRate/Items/{itemId}` returns `{ average, count, mine, entries: [{ userId, userName, score, review, updatedAt, edited }] }`, newest first.
 - `PUT /JellyRate/Items/{itemId}` with body `{ score (1–10), review? }` creates or updates the caller's entry.
 - `DELETE /JellyRate/Items/{itemId}` removes the caller's entry.
+- `GET /JellyRate/Summaries?ids=a,b,c` (max 100 ids, invalid ones ignored; more is a 400) returns `{itemId: {average, count}}` for the visible movies/series that have ratings (others omitted, no 404s). Used for card badges; one read of the store per request.
 - Auth: Jellyfin's `MediaBrowser` Authorization scheme (legacy `api_key` / `X-Emby-Token` are disabled in 12). The user ID comes from the auth claims, never from the request.
 - Every route checks the item exists, is a Movie or Series, and is visible to the caller (library access); otherwise 404.
 
@@ -53,7 +54,7 @@ GitHub Actions builds with `jprm`, publishes a release zip, and updates a custom
 Release: set `version` in `build.yaml`, push tag `v<version>` (e.g. `v1.0.0.0`); `release.yml` builds with jprm (`-p:Version` from build.yaml), creates the GitHub release and commits `manifest.json` to the `manifest` branch. Admin adds in Dashboard > Plugins > Repositories: `https://raw.githubusercontent.com/emilia-ghdt/jellyrate/manifest/manifest.json`.
 
 ## Non-goals
-Episodes/seasons, card badges in library grids, importing existing ratings, notifications, translations, moderation UI, review length limits, external databases.
+Episodes/seasons, importing existing ratings, notifications, translations, moderation UI, review length limits, external databases.
 
 ## Risks / open items
 - Jellyfin 12 rewrites data on first boot; there's no official note on plugin data folders. Verify early that `jellyrate.json` survives an upgrade and the plugin data path is stable.

@@ -17,6 +17,11 @@
   - G "Star button" implemented in jellyrate.js; verified in headless Chromium (rate/change/remove/hover/Escape/outside click/keyboard/review/mobile); 18 unit + 12 integration pass. Demo + UI test scripts live in the session scratchpad.
 - [x] verify README's File Transformation link and install instructions against its repo
 - [x] pin runners to ubuntu-24.04 in ci.yml and release.yml
-- [ ] show JellyRate average next to the community rating on the detail page (incl. ElegantFin theme)
-- [ ] show JellyRate rating on title cards (bulk ratings endpoint + card badges, incl. ElegantFin)
+- [x] show JellyRate average next to the community rating on the detail page (incl. ElegantFin theme)
+  - Badge "★ 7.8 (3)" after .starRatingContainer in .itemMiscInfo-primary; re-inserted if the client rebuilds the row. Verified in headless Chromium (default + ElegantFin, desktop + mobile) with File Transformation 3.0.3.0; unit + integration tests pass. Playwright script not in repo.
+- [x] show JellyRate rating on title cards (bulk ratings endpoint + card badges, incl. ElegantFin)
+  - GET /JellyRate/Summaries + badge top-left on Movie/Series cards (debounced observer, 60 s cache, live update after rating). Verified in headless Chromium (default + ElegantFin, desktop + mobile, home/grid). Scripts in session scratchpad.
 - [ ] code readability pass (after the nice-to-haves)
+- [x] fix flicker of the JellyRate badge on movie/series detail pages without a community rating (ElegantFin)
+- [x] make JellyRate stars look exactly like ElegantFin's rating stars (shape/size/weight), keeping the purple-blue color
+- [x] pending rating: picking a score is only stored on "Save review" (with the review text); fix 'edited' being set when the review text didn't change

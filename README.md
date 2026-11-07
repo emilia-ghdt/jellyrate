@@ -27,7 +27,7 @@ A Jellyfin plugin for rating movies and series from 1 to 10 and optionally writi
 
 ## Usage
 
-Open a movie or series, pick a score from 1 to 10, optionally write a review, and save. Saving again changes your rating; deleting removes it.
+Open a movie or series, pick a score from 1 to 10 (it stays pending until you click "Save review"), optionally write a review, and save. Saving again changes your rating; deleting removes it.
 
 ## Data and moderation
 
@@ -53,7 +53,7 @@ There is no moderation UI and no review length limit. To delete a rating or revi
 ```
 
 - To remove one user's rating, delete their `<user id>` entry. To remove only a review, set `review` to `null`.
-- `edited` becomes `true` once a rating's review text has changed after it was first created, and stays `true`.
+- `edited` becomes `true` only when a previously stored review is changed to different text (clearing it counts), and stays `true`. Adding a first review, changing only the score or re-saving the same text does not set it.
 - Keep the JSON valid. If an item has no users left, delete the item entry as well.
 
 ## REST API
@@ -65,9 +65,10 @@ All endpoints require a normal Jellyfin authenticated user (`[Authorize]`). They
 | GET | `/JellyRate/Items/{itemId}` | Average, count, the caller's rating (`mine`) and all entries |
 | PUT | `/JellyRate/Items/{itemId}` | Body `{"score": 1-10, "review": "optional"}`; 400 if the score is out of range |
 | DELETE | `/JellyRate/Items/{itemId}` | Remove the caller's rating |
+| GET | `/JellyRate/Summaries?ids=a,b,c` | Up to 100 comma-separated IDs; returns `{itemId: {average, count}}` only for visible movies/series with ratings (400 if more than 100 IDs) |
 | GET | `/JellyRate/ui.js` | The injected web UI script |
 
-The first three return `{average, count, mine, entries[]}`; each entry has `userId`, `userName`, `score`, `review`, `updatedAt` and `edited`.
+The Items routes return `{average, count, mine, entries[]}`; each entry has `userId`, `userName`, `score`, `review`, `updatedAt` and `edited`.
 
 ## Building and testing
 
