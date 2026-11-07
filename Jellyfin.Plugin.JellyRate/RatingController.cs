@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net.Mime;
@@ -16,7 +17,7 @@ namespace Jellyfin.Plugin.JellyRate;
 /// </summary>
 [ApiController]
 [Authorize]
-[Route("JellyRate/Items/{itemId}")]
+[Route("JellyRate")]
 [Produces(MediaTypeNames.Application.Json)]
 public class RatingController : ControllerBase
 {
@@ -44,7 +45,7 @@ public class RatingController : ControllerBase
     /// <response code="200">The item's ratings.</response>
     /// <response code="404">The item is unknown, not a movie or series, or not visible to the user.</response>
     /// <returns>The ratings.</returns>
-    [HttpGet]
+    [HttpGet("Items/{itemId}")]
     public ActionResult<RatingResponse> Get([FromRoute] Guid itemId)
     {
         return Check(itemId, out var userId) is { } error ? error : Respond(itemId, userId);
@@ -59,7 +60,7 @@ public class RatingController : ControllerBase
     /// <response code="400">The score is not between 1 and 10.</response>
     /// <response code="404">The item is unknown, not a movie or series, or not visible to the user.</response>
     /// <returns>The ratings.</returns>
-    [HttpPut]
+    [HttpPut("Items/{itemId}")]
     public ActionResult<RatingResponse> Put([FromRoute] Guid itemId, [FromBody, Required] RatingRequest request)
     {
         if (Check(itemId, out var userId) is { } error)
@@ -83,7 +84,7 @@ public class RatingController : ControllerBase
     /// <response code="200">The updated ratings.</response>
     /// <response code="404">The item is unknown, not a movie or series, or not visible to the user.</response>
     /// <returns>The ratings.</returns>
-    [HttpDelete]
+    [HttpDelete("Items/{itemId}")]
     public ActionResult<RatingResponse> Delete([FromRoute] Guid itemId)
     {
         if (Check(itemId, out var userId) is { } error)
@@ -93,6 +94,34 @@ public class RatingController : ControllerBase
 
         _store.Remove(itemId, userId);
         return Respond(itemId, userId);
+    }
+
+    /// <summary>
+    /// Gets the average and count for several items at once (for title cards).
+    /// </summary>
+    /// <param name="ids">Comma-separated item IDs, at most <see cref="RatingSummary.MaxIds"/>.</param>
+    /// <response code="200">Summaries by item ID; only visible movies and series that have ratings.</response>
+    /// <response code="400">Too many IDs.</response>
+    /// <returns>The summaries.</returns>
+    [HttpGet("Summaries")]
+    public ActionResult<IReadOnlyDictionary<string, RatingSummary>> Summaries([FromQuery] string? ids)
+    {
+        var wanted = RatingSummary.ParseIds(ids);
+        if (wanted.Count > RatingSummary.MaxIds)
+        {
+            return BadRequest($"At most {RatingSummary.MaxIds} ids.");
+        }
+
+        // Same visibility rule as the single-item routes; hidden items are omitted.
+        var claim = User.Claims.FirstOrDefault(c => c.Type == "Jellyfin-UserId")?.Value;
+        var user = Guid.TryParse(claim, out var userId) ? _userManager.GetUserById(userId) : null;
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var visible = wanted.Where(id => _libraryManager.GetItemById<BaseItem>(id, user) is Movie or Series);
+        return Ok(_store.Summaries(visible).ToDictionary(kv => kv.Key.ToString("N"), kv => kv.Value));
     }
 
     // Returns an error result, or null when the caller may access the item.

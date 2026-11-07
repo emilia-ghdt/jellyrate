@@ -76,6 +76,36 @@ public sealed class RatingStoreTests : IDisposable
     }
 
     [Fact]
+    public void Set_AddingReviewToScoreOnly_IsNotEdited()
+    {
+        _store.Set(_item, _alice, 5, null);
+        Assert.False(_store.Set(_item, _alice, 5, "first review").Edited);
+        Assert.False(_store.Set(_item, _alice, 7, "first review").Edited);
+    }
+
+    [Fact]
+    public void Set_SameReviewAgain_IsNotEdited()
+    {
+        _store.Set(_item, _alice, 5, "good");
+        Assert.False(_store.Set(_item, _alice, 5, "good").Edited);
+    }
+
+    [Fact]
+    public void Set_ScoreOnlyChangeWithoutReview_IsNotEdited()
+    {
+        _store.Set(_item, _alice, 5, null);
+        Assert.False(_store.Set(_item, _alice, 6, null).Edited);
+        Assert.False(_store.Set(_item, _alice, 6, "  ").Edited);
+    }
+
+    [Fact]
+    public void Set_ClearingReview_IsEdited()
+    {
+        _store.Set(_item, _alice, 5, "good");
+        Assert.True(_store.Set(_item, _alice, 5, null).Edited);
+    }
+
+    [Fact]
     public void Set_LongReview_Works()
     {
         var text = new string('x', 100_000);

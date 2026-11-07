@@ -43,7 +43,7 @@ public class RatingStore
             var users = data.Items.TryGetValue(itemId, out var existing) ? existing : data.Items[itemId] = new();
             var now = DateTimeOffset.UtcNow;
             var rating = users.TryGetValue(userId, out var old)
-                ? old with { Score = score, Review = review, UpdatedAt = now, Edited = old.Edited || old.Review != review }
+                ? old with { Score = score, Review = review, UpdatedAt = now, Edited = old.Edited || (old.Review is not null && old.Review != review) }
                 : new Rating(score, review, now, now, false);
             users[userId] = rating;
             Save(data);
@@ -90,6 +90,31 @@ public class RatingStore
                 ? users.OrderByDescending(u => u.Value.UpdatedAt).Select(u => (u.Key, u.Value)).ToList()
                 : [];
         }
+    }
+
+    /// <summary>
+    /// Gets the average and count of several items with one read. Items without ratings are omitted.
+    /// </summary>
+    /// <param name="itemIds">The item IDs.</param>
+    /// <returns>Summaries by item ID.</returns>
+    public Dictionary<Guid, RatingSummary> Summaries(IEnumerable<Guid> itemIds)
+    {
+        Dictionary<Guid, Dictionary<Guid, Rating>> items;
+        lock (_lock)
+        {
+            items = Load().Items;
+        }
+
+        var result = new Dictionary<Guid, RatingSummary>();
+        foreach (var id in itemIds)
+        {
+            if (items.TryGetValue(id, out var users) && users.Count > 0)
+            {
+                result[id] = new RatingSummary(Math.Round(users.Values.Average(r => r.Score), 2), users.Count);
+            }
+        }
+
+        return result;
     }
 
     private Data Load() => File.Exists(_path) ? JsonSerializer.Deserialize<Data>(File.ReadAllText(_path), _options) ?? new() : new();

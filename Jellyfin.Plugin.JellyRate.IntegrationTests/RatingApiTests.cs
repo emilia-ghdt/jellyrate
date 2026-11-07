@@ -18,6 +18,47 @@ public class RatingApiTests : IClassFixture<JellyfinFixture>
     private static Task<HttpResponseMessage> Put(HttpClient c, string url, int score, string? review = null) =>
         c.PutAsJsonAsync(url, new { Score = score, Review = review });
 
+    private string SummariesUrl(params Guid[] ids) => "JellyRate/Summaries?ids=" + string.Join(',', ids.Select(i => i.ToString("N")));
+
+    private record Summary(double Average, int Count);
+
+    private static async Task<Dictionary<string, Summary>> ReadSummaries(HttpResponseMessage r)
+    {
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        return (await r.Content.ReadFromJsonAsync<Dictionary<string, Summary>>(JellyfinFixture.Json))!;
+    }
+
+    [Fact]
+    public async Task Summaries_ReturnsOnlyRatedItems()
+    {
+        await CleanAsync();
+        await Put(_f.Alice, Url(_f.MovieId), 8);
+        await Put(_f.Bob, Url(_f.MovieId), 5);
+
+        var s = await ReadSummaries(await _f.Alice.GetAsync(SummariesUrl(_f.MovieId, _f.SeriesId, _f.EpisodeId, Guid.NewGuid()) + ",junk"));
+        var entry = Assert.Single(s);
+        Assert.Equal(_f.MovieId.ToString("N"), entry.Key);
+        Assert.Equal(6.5, entry.Value.Average);
+        Assert.Equal(2, entry.Value.Count);
+    }
+
+    [Fact]
+    public async Task Summaries_HiddenItemsAreOmitted()
+    {
+        await CleanAsync();
+        await Put(_f.Alice, Url(_f.MovieId), 8);
+        Assert.Empty(await ReadSummaries(await _f.Restricted.GetAsync(SummariesUrl(_f.MovieId))));
+    }
+
+    [Fact]
+    public async Task Summaries_RequiresAuthAndCapsIds()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _f.Anonymous.GetAsync(SummariesUrl(_f.MovieId))).StatusCode);
+        var many = Enumerable.Range(0, 100 + 1).Select(_ => Guid.NewGuid()).ToArray();
+        Assert.Equal(HttpStatusCode.BadRequest, (await _f.Alice.GetAsync(SummariesUrl(many))).StatusCode);
+        Assert.Empty(await ReadSummaries(await _f.Alice.GetAsync(SummariesUrl(many.Take(100).ToArray()))));
+    }
+
     private async Task CleanAsync()
     {
         foreach (var id in new[] { _f.MovieId, _f.SeriesId })
@@ -68,6 +109,18 @@ public class RatingApiTests : IClassFixture<JellyfinFixture>
         Assert.Equal(9, second.Mine!.Score);
         Assert.Equal("great", second.Mine.Review);
         Assert.True(second.Mine.Edited);
+    }
+
+    [Fact]
+    public async Task OnlyChangingExistingReviewSetsEdited()
+    {
+        await CleanAsync();
+        var u = Url(_f.MovieId);
+        Assert.False((await _f.ReadAsync(await Put(_f.Alice, u, 6))).Mine!.Edited);
+        Assert.False((await _f.ReadAsync(await Put(_f.Alice, u, 6, "first review"))).Mine!.Edited);
+        Assert.False((await _f.ReadAsync(await Put(_f.Alice, u, 8, "first review"))).Mine!.Edited);
+        Assert.False((await _f.ReadAsync(await Put(_f.Alice, u, 8, "first review"))).Mine!.Edited);
+        Assert.True((await _f.ReadAsync(await Put(_f.Alice, u, 8, "changed review"))).Mine!.Edited);
     }
 
     [Fact]
